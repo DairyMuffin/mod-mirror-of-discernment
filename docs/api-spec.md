@@ -1,132 +1,83 @@
-# API Specification — Content Alignment API (CAA)
+```markdown
+# AR Filter UI Specification — Mirror of Discernment (MoD)
 
-## Base URL
+## 1. Overview
 
-http://<CAA_HOST>:8080/scan
-Authorization: Bearer <YOUR_VIP_API_KEY>
+The AR Filter is a lightweight, cross-platform client that overlays “truth gates” in real time on any camera or video feed. It visualizes the 12-Beat cycle, highlights passing segments, and enables user interaction at three key gate-points.
 
-{
-  "text": "Your text to scan here.",
-  "threshold": 0.5
-}
+## 2. UI Layout
 
-{
-  "segments": [
-    {
-      "id": 1,
-      "text": "First segment text…",
-      "score": 0.87,
-      "bias": false
-    },
-    {
-      "id": 2,
-      "text": "Next segment…",
-      "score": 0.42,
-      "bias": true
-    }
-  ]
-}
+```
 
-curl -X POST http://localhost:8080/scan \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_VIP_KEY" \
-  -d '{"text":"Hello world","threshold":0.6}'
++-------------------------------------------------------------+
+\| \[Top Bar] Beat: 1 2 3 ... 12   |   • Profile • Settings     |
++-------------------------------------------------------------+
+\| \[Camera Viewport with Overlay]                             |
+\|   • Semi-transparent overlays on flagged segments           |
+\|   • Color coding:                                           |
+\|       - Green   = Passed Gate                               |
+\|       - Red     = Failed Gate                               |
+\|       - Yellow  = Pending Gate                              |
++-------------------------------------------------------------+
+\| \[Beat/Gate Panel]                                           |
+\|   • Beat timer (countdown)                                  |
+\|   • Gate name & icon                                        |
+\|   • Clickable “Hold” button at Beats 4, 7, 10               |
++-------------------------------------------------------------+
+\| \[Footer]   • Logs   • Help   • Exit                         |
++-------------------------------------------------------------+
 
-fetch('http://localhost:8080/scan', {
-  method: 'POST',
-  headers: {
-    'Content-Type':'application/json',
-    'Authorization':'Bearer YOUR_VIP_KEY'
-  },
-  body: JSON.stringify({ text: "Hello world", threshold: 0.6 })
-})
-.then(res => res.json())
-.then(console.log)
+```
 
+## 3. Interaction Flow
 
-This will create `docs/api-spec.md`. Once that’s done, verify with:
+1. **Startup**
+   - Request camera permissions.
+   - Load user thresholds and topics via API.
 
-```bash
-ls docs
-head -n 10 docs/api-spec.md
+2. **Beat Clock**
+   - Visual timer cycles through Beats 1–12.
+   - At each beat, call the CAA `/scan` endpoint for the current frame or extracted text.
 
-git add docs/api-spec.md
-git commit -m "Add api-spec.md"
+3. **Overlay Rendering**
+   - Draw translucent overlays around text regions or across the viewport.
+   - Apply color coding based on the latest gate result.
 
-cat > docs/api-spec.md << 'EOF'
-# API Specification — Content Alignment API (CAA)
+4. **Click Triggers**
+   - At Beats 4, 7, and 10, display a “Hold → Compare → Decide” prompt.
+   - User confirms by tapping the overlay or pressing the spacebar.
 
-## Base URL
-\`\`\`
-http://<CAA_HOST>:8080/scan
-\`\`\`
+5. **Segment Details**
+   - Tapping a segment reveals a breakdown: score, passed/failed gates.
+   - Options to “Report” an issue or “Adjust Threshold.”
 
-## Authentication
-All requests require an API key header:
-\`\`\`
-Authorization: Bearer <YOUR_VIP_API_KEY>
-\`\`\`
+## 4. Technical Requirements
 
-## POST /scan
-**Description:** Score and segment input text for alignment.
+- **Platform Support:**
+  - WebAR (Three.js + AR.js) or React Native with ARKit/ARCore.
+- **Dependencies:**
+  - CAA client library (JavaScript).
+  - WebGL/Canvas for rendering overlays.
+  - UI framework (React, Vue, or vanilla JS).
+- **Performance:**
+  - Target ≥30 FPS.
+  - Debounce API calls (maximum 5 scans per second).
+- **Accessibility:**
+  - High-contrast mode.
+  - Large tap targets for “Hold” actions.
 
-### Request
-- **URL:** \`/scan\`
-- **Method:** \`POST\`
-- **Headers:**
-  - \`Content-Type: application/json\`
-  - \`Authorization: Bearer <VIP_KEY>\`
-- **Body (JSON):**
-  \`\`\`json
-  {
-    "text": "Your text to scan here.",
-    "threshold": 0.5
-  }
-  \`\`\`
+## 5. Assets & Icons
 
-### Response
-- **Status 200** (OK)  
-  \`\`\`json
-  {
-    "segments": [
-      {
-        "id": 1,
-        "text": "First segment text…",
-        "score": 0.87,
-        "bias": false
-      },
-      {
-        "id": 2,
-        "text": "Next segment…",
-        "score": 0.42,
-        "bias": true
-      }
-    ]
-  }
-  \`\`\`
+- **Beat/Gate Icons:** SVGs located in `assets/icons/beat-1.svg` through `beat-12.svg`.
+- **Overlay Color Palette:** Defined in `styles/ar-filter.css`.
+- **Click Animations:** Lottie JSON files in `assets/animations/hold-click.json`.
 
-- **Error Codes:**
-  - \`400 Bad Request\` – missing/invalid body  
-  - \`401 Unauthorized\` – missing/invalid API key  
-  - \`500 Internal Server Error\` – server failure
+## 6. Testing & Quality Assurance
 
-### Examples
-\`\`\`bash
-curl -X POST http://localhost:8080/scan \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_VIP_KEY" \
-  -d '{"text":"Hello world","threshold":0.6}'
-\`\`\`
-
-\`\`\`js
-fetch('http://localhost:8080/scan', {
-  method: 'POST',
-  headers: {
-    'Content-Type':'application/json',
-    'Authorization':'Bearer YOUR_VIP_KEY'
-  },
-  body: JSON.stringify({ text: "Hello world", threshold: 0.6 })
-})
-.then(res => res.json())
-.then(console.log)
-\`\`\`
+- **Unit Testing:**
+  - Simulate beat ticks and verify correct API call frequency.
+  - Mock gate results to validate overlay color logic.
+- **Manual QA:**
+  - Test on iOS Safari and Android Chrome.
+  - Validate camera permissions, UI responsiveness, and latency.
+```

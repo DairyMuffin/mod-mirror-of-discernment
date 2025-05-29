@@ -1,0 +1,6 @@
+[submodule "deps/caa"]
+	path = deps/caa
+	url = git@github.com:DairyMuffin/caa.git
+[submodule "deps/qsbm-dashboard"]
+	path = deps/qsbm-dashboard
+	url = git@github.com:DairyMuffin/qsbm-dashboard.git

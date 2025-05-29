@@ -1,121 +1,44 @@
 # CI Pipeline Specification — Mirror of Discernment (MoD)
 
 ## 1. Overview
-This CI pipeline automates linting, testing, building, and publishing for all MoD components: CAA, AR client, Gateway, and QBSM Dashboard.
+This CI pipeline automates linting, testing, building, and publishing for all MoD components:
+- **CAA** (Core Analysis API)
+- **AR Client**
+- **Gateway**
+- **QBSM Dashboard**
 
----
+It runs on pushes and merge‐requests against `main` (and any release branches matching `release/*`).
 
-## 2. Workflow Stages
+## 2. Workflow Triggers
+- **Push** to any branch → lint + basic unit tests.  
+- **Merge Request** against `main`:
+  1. Full unit + integration tests.  
+  2. Build artifacts.  
+  3. Publish to staging registry (if passing).  
+- **Tag** matching `v*.*.*` → build Docker images, push to Docker Hub, and deploy to production namespace.
 
-### A. Lint & Format
-- **Tools:**  
-  - Python: `flake8`, `black --check`  
-  - JavaScript: `eslint --max-warnings 0`, `prettier --check`
+## 3. Job Definitions
 
-### B. Unit Tests
-- **CAA:**  
-  - `pytest tests/`  
-  - Mock external APIs for `/scan`  
-- **AR Client & Gateway:**  
-  - Jest or Mocha for JS modules  
-  - Snapshot tests for UI components
-
-### C. Integration Tests
-- Spin up services in Docker Compose:
+### 3.1 Lint
+- **Image:** `node:18-alpine`  
+- **Script:**
   ```bash
-  docker-compose -f ci/docker-compose.test.yml up -d
-  pytest integration_tests/
-  docker-compose -f ci/docker-compose.test.yml down
+  npm ci
+  npm run lint
 
-docker build -t dairymuffin/caa:${{ github.sha }} -f deps/caa/Dockerfile deps/caa
-docker build -t dairymuffin/mod-gateway:${{ github.sha }} .
-docker build -t dairymuffin/qsbm-dashboard:${{ github.sha }} -f deps/qsbm-dashboard/Dockerfile deps/qsbm-dashboard
-docker build -t dairymuffin/ar-client:${{ github.sha }} -f ar-client/Dockerfile ar-client
+pip install -r requirements.txt
+pytest --junitxml=reports/unit-tests.xml
 
-docker push dairymuffin/caa:${{ github.sha }}
-# ...and similarly for other images
+npm run start &       # Dev server in background
+npm run test:integration
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    steps:
-      - name: Deploy to Staging
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.STAGING_HOST }}
-          script: |
-            cd /srv/mod-mirror-of-discernment
-            git pull
-            docker-compose pull
-            docker-compose up -d
+docker build -t registry.example.com/mod/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA} .
+docker push registry.example.com/mod/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
 
-name: CI
+git tag rollback-$(date +%Y%m%d)-${CI_PROJECT_NAME}
+git push --tags
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  release:
-    types: [ created ]
-
-jobs:
-  lint-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with: python-version: '3.10'
-      - name: Install dependencies
-        run: |
-          pip install flake8 black pytest
-          npm install
-      - name: Lint Python
-        run: |
-          flake8 .
-          black --check .
-      - name: Lint JS
-        run: |
-          npx eslint .
-          npx prettier --check .
-      - name: Run unit tests
-        run: pytest
-      - name: Run integration tests
-        run: |
-          docker-compose -f ci/docker-compose.test.yml up -d
-          pytest integration_tests/
-          docker-compose -f ci/docker-compose.test.yml down
-
-  build-and-push:
-    needs: lint-and-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build & Push Docker Images
-        uses: docker/build-push-action@v4
-        with:
-          push: true
-          tags: |
-            dairymuffin/caa:${{ github.sha }}
-            dairymuffin/mod-gateway:${{ github.sha }}
-            dairymuffin/qsbm-dashboard:${{ github.sha }}
-            dairymuffin/ar-client:${{ github.sha }}
-
-  deploy:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy to Production
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          script: |
-            cd /srv/mod-mirror-of-discernment
-            git pull
-            docker-compose pull
-            docker-compose up -d
+curl -X POST https://ops.example.com/redeploy \
+     -H "Authorization: Bearer $OPS_TOKEN" \
+     -d '{"service":"'"${CI_PROJECT_NAME}"'"}'
 

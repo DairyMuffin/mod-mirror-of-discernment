@@ -1,0 +1,61 @@
+stages:
+  - lint
+  - test
+  - build
+
+# 1) JavaScript lint
+eslint:
+  image: node:18-alpine
+  stage: lint
+  script:
+    - npm ci
+    - npm run lint
+  cache:
+    key: \${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+
+# 2) Markdown lint
+markdownlint:
+  image: node:18-alpine
+  stage: lint
+  script:
+    - apk add --no-cache git
+    - npx markdownlint "docs/**/*.md" --config ./.markdownlint.json
+  only:
+    - merge_requests
+    - main
+
+# 3) Python unit tests
+unit_tests:
+  image: python:3.11
+  stage: test
+  script:
+    - pip install -r requirements.txt
+    - pytest --junitxml=reports/unit-tests.xml
+  artifacts:
+    when: always
+    paths:
+      - reports/
+
+# 4) Integration tests
+integration_tests:
+  image: cypress/base:14
+  stage: test
+  services:
+    - name: postgres:14
+      alias: db
+    - name: redis:7
+      alias: cache
+  script:
+    - npm ci
+    - npm run start &        # launch your server
+    - npm run test:integration
+  artifacts:
+    when: always
+    paths:
+      - cypress/results/
+
+# 5) Build & Publish Docker
+build_publish:
+

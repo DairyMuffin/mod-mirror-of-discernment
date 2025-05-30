@@ -36,7 +36,7 @@ unit_tests:
   artifacts:
     when: always
     paths:
-      - reports/
+      - reports/ 
 
 # 4) Integration tests
 integration_tests:

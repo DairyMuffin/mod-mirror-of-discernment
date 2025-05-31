@@ -31,6 +31,9 @@
 - [FAQ](06_maintenance/faq.md)
 
 ## Extras
+- [Quick Start](quick-start.md)
+- [Onboarding Checklist](onboarding-checklist.md)
 - [UNFURL Cross-Reference](unfurl-crossref.md)
 - [Structural Documentation Overview](structural-spec.md)
 - [Algorithm Licensing Auction](algorithm-auction.md)
+
